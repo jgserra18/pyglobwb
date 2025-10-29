@@ -1,0 +1,127 @@
+# Rooting Depth Configuration (meters)
+# Format: Crop name with irrigated and rainfed maximum rooting depths
+
+crops:
+  Barley:
+    irrigated: 1.0
+    rainfed: 1.5
+    
+  Wheat:
+    irrigated: 1.5
+    rainfed: 1.8
+    
+  Tomato:
+    irrigated: 0.7
+    rainfed: 1.5
+    
+  Olive:
+    irrigated: 1.2
+    rainfed: 1.7
+    
+  Orange:
+    irrigated: 1.1
+    rainfed: 1.5
+    
+  Alfalfa:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Almonds:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Maize:
+    irrigated: 1.0
+    rainfed: 1.7
+    
+  Grapevine:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Rice:
+    irrigated: 0.5
+    rainfed: 1.0
+    
+  Potato:
+    irrigated: 0.4
+    rainfed: 0.6
+    
+  "Faba bean/Broad bean, green, for fodder":
+    irrigated: 0.5
+    rainfed: 0.7
+    
+  Beans:
+    irrigated: 0.6
+    rainfed: 0.9
+    
+  Chickpea:
+    irrigated: 0.6
+    rainfed: 1.0
+    
+  "Sunflower seed":
+    irrigated: 0.8
+    rainfed: 1.5
+    
+  Onion:
+    irrigated: 0.3
+    rainfed: 0.6
+    
+  Apple:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Peach:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Cottonseed:
+    irrigated: 0.6
+    rainfed: 1.0
+    
+  Rape:
+    irrigated: 1.0
+    rainfed: 1.5
+    
+  "Vegetables, other":
+    irrigated: 0.6
+    rainfed: 1.0
+    
+  Citrus:
+    irrigated: 1.1
+    rainfed: 1.5
+    
+  Sorghum:
+    irrigated: 1.0
+    rainfed: 2.0
+    
+  Lentils:
+    irrigated: 0.6
+    rainfed: 0.8
+    
+  Avocado:
+    irrigated: 0.5
+    rainfed: 1.0
+    
+  Kiwifruit:
+    irrigated: 0.7
+    rainfed: 1.3
+    
+  Lettuce:
+    irrigated: 0.3
+    rainfed: 0.5
+    
+  Blueberries:
+    irrigated: 0.7
+    rainfed: 1.3
+    
+  Cauliflower:
+    irrigated: 0.4
+    rainfed: 0.7
+    
+  "Cabbage, Broccoli":
+    irrigated: 0.5
+    rainfed: 0.8
+    
+  Plum:
+    irrigated: 0.5
+    rainfed: 0.8
