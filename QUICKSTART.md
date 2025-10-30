@@ -59,39 +59,9 @@ print("\nAnnual Summary:")
 print(model.get_annual_summary(results))
 ```
 
-### 2. Using Configuration Templates
+### 2. Using YAML Configuration
 
-```python
-from config_template import get_crop_config, get_soil_config, get_irrigation_config
-from water_balance_model import *
-
-# Get pre-configured parameters
-crop_cfg = get_crop_config('wheat', 'irrigated')
-soil_cfg = get_soil_config('loam')
-irrig_cfg = get_irrigation_config('sprinkler')
-
-# Create parameters
-soil = SoilParameters(
-    smax_base=soil_cfg['smax_base'],
-    rmax=soil_cfg['rmax'],
-    calibration_factor=2.4
-)
-
-crop = create_crop_parameters_from_monthly_kc(
-    crop_name=crop_cfg['name'],
-    monthly_kc=crop_cfg['monthly_kc'],
-    rooting_depth_max=crop_cfg['rooting_depth_max'],
-    start_date='2015-01-01',
-    end_date='2019-12-31',
-    is_permanent_crop=crop_cfg['is_permanent']
-)
-
-# Run model
-model = WaterBalanceModel(soil, crop, climate, 
-                         irrig_cfg['management'],
-                         irrig_cfg['efficiency'])
-results = model.run()
-```
+See `example_with_config.py` and `CONFIG_GUIDE.md` for a complete example using the YAML files in the `config/` directory via `ConfigManager`.
 
 ### 3. Loading Your Own Data
 
@@ -169,20 +139,11 @@ This will generate:
 Run this to see all available crops:
 
 ```python
-from config_template import CROP_KC_DATABASE
-print("Available crops:", list(CROP_KC_DATABASE.keys()))
+from config_manager import ConfigManager
+print("Available crops:", ConfigManager().list_crops())
 ```
 
 **Common crops**: maize, wheat, barley, rice, tomato, potato, olive, almond, grapevine, orange, apple
-
-## Available Soil Types
-
-```python
-from config_template import SOIL_TYPE_DATABASE
-print("Available soils:", list(SOIL_TYPE_DATABASE.keys()))
-```
-
-**Common soils**: sand, loam, clay_loam, sandy_loam, clay
 
 ## Key Parameters to Adjust
 
@@ -217,9 +178,9 @@ print("Available soils:", list(SOIL_TYPE_DATABASE.keys()))
 ## Next Steps
 
 1. Read the full documentation: `README_water_balance_model.md`
-2. Explore configuration options: `config_template.py`
+2. Explore YAML configuration: `CONFIG_GUIDE.md`
 3. Check data utilities: `data_utils.py`
-4. Review example scripts: `example_usage.py`
+4. Review example scripts: `example_usage.py`, `example_with_config.py`
 
 ## Support
 

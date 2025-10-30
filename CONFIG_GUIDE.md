@@ -4,6 +4,8 @@ This guide explains how to use the YAML configuration system for the water balan
 
 ## Overview
 
+All YAML configuration files live in the project root `config/` directory. This is the single source of truth used by `ConfigManager`.
+
 The model uses three YAML configuration files:
 1. **`crop_kc.yaml`** - Crop coefficients and growing season information
 2. **`rooting_depth.yaml`** - Maximum rooting depths for irrigated and rainfed conditions
