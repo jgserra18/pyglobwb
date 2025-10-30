@@ -558,24 +558,27 @@ def create_crop_parameters_from_monthly_kc(
 
 def get_irrigation_efficiency(irrigation_system: str) -> float:
     """
-    Get typical irrigation efficiency for different systems.
+    Get irrigation efficiency for different systems from YAML configuration.
+    
+    This is a convenience function that loads the ConfigManager and retrieves
+    the irrigation efficiency. For better performance when calling multiple times,
+    create a ConfigManager instance and use config.get_irrigation_efficiency().
     
     Args:
         irrigation_system: Type of irrigation system
         
     Returns:
         Irrigation efficiency (0-1)
+        
+    Note:
+        This function loads configuration from config/irrigation_efficiency.yaml
     """
-    efficiencies = {
-        'drip': 0.90,
-        'sprinkler': 0.75,
-        'traditional': 0.60,
-        'flooded': 0.60,
-        'rainfed': 1.00
-    }
+    import warnings
+    try:
+        from .config_manager import ConfigManager
+    except ImportError:
+        from config_manager import ConfigManager
     
-    system_lower = irrigation_system.lower()
-    if system_lower not in efficiencies:
-        raise ValueError(f"Unknown irrigation system: {irrigation_system}")
-    
-    return efficiencies[system_lower]
+    # Load config and get efficiency
+    config = ConfigManager()
+    return config.get_irrigation_efficiency(irrigation_system)
