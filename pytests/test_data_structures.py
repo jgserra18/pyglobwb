@@ -22,7 +22,7 @@ class TestSoilParameters:
         assert soil.reference_depth == 0.6
         assert soil.rmax == 10.0
         assert soil.initial_sm == 75.0  # 50% of smax_base
-        assert soil.calibration_factor == 2.4
+        assert soil.calibration_factor == 1.0
     
     def test_initialization_with_custom_values(self):
         """Test SoilParameters initialization with custom values."""
@@ -31,14 +31,14 @@ class TestSoilParameters:
             reference_depth=0.8,
             rmax=15.0,
             initial_sm=100.0,
-            calibration_factor=3.0
+            calibration_factor=2.0
         )
         
         assert soil.smax_base == 200.0
         assert soil.reference_depth == 0.8
         assert soil.rmax == 15.0
         assert soil.initial_sm == 100.0
-        assert soil.calibration_factor == 3.0
+        assert soil.calibration_factor == 2.0
     
     def test_initial_sm_default_calculation(self):
         """Test that initial_sm defaults to 50% of smax_base."""

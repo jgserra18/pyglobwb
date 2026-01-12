@@ -32,15 +32,21 @@ class SoilParameters:
     Attributes:
         smax_base: Base maximum soil moisture storage (mm) at reference depth
         reference_depth: Reference rooting depth (m) for smax_base, default 0.6m
-        rmax: Maximum percolation rate (mm/year) - will be converted to daily rate internally
+        rmax: Maximum percolation rate (mm/day)
         initial_sm: Initial soil moisture (mm)
-        calibration_factor: Regional calibration factor for percolation (default 2.4 for Spain)
+        calibration_factor: Optional regional calibration factor for percolation (default 1.0)
+        pawc_soil: Plant available water content (m3/m3) - used in option 2 calculation
+        zmax: Maximum soil depth for root zone (m) - used in option 2 calculation
+        p: Depletion fraction for readily available water - used in option 2 calculation
     """
     smax_base: float
     reference_depth: float = 0.6
     rmax: float = 10.0
     initial_sm: Optional[float] = None
-    calibration_factor: float = 2.4
+    calibration_factor: float = 1.0
+    pawc_soil: float = 0.18
+    zmax: float = 2.0
+    p: float = 0.5
     
     def __post_init__(self):
         if self.initial_sm is None:
@@ -107,7 +113,8 @@ class WaterBalanceModel:
         crop_params: CropParameters,
         climate_data: ClimateData,
         management: str = "rainfed",
-        irrigation_efficiency: float = 1.0
+        irrigation_efficiency: float = 1.0,
+        smax_calculation_option: int = 1
     ):
         """
         Initialize the water balance model.
@@ -118,12 +125,16 @@ class WaterBalanceModel:
             climate_data: Climate forcing data
             management: Management type ("rainfed" or "irrigated")
             irrigation_efficiency: Irrigation system efficiency (0-1)
+            smax_calculation_option: Method for calculating smax/seav (1 or 2)
+                Option 1: Original method using smax_base and reference_depth
+                Option 2: PAWC-based method using pawc_soil, zmax, and p
         """
         self.soil = soil_params
         self.crop = crop_params
         self.climate = climate_data
         self.management = management.lower()
         self.irrigation_efficiency = irrigation_efficiency
+        self.smax_calculation_option = smax_calculation_option
         
         # Validate inputs
         self._validate_inputs()
@@ -139,6 +150,9 @@ class WaterBalanceModel:
         
         if not 0 < self.irrigation_efficiency <= 1:
             raise ValueError("irrigation_efficiency must be between 0 and 1")
+        
+        if self.smax_calculation_option not in [1, 2]:
+            raise ValueError("smax_calculation_option must be 1 or 2")
         
         # Check date alignment
         if not self.climate.dates.equals(self.crop.dates):
@@ -160,7 +174,13 @@ class WaterBalanceModel:
         """
         Calculate dynamic maximum soil moisture and easily available water.
         
-        Smax varies with crop rooting depth. Seav is typically 50% of Smax.
+        Two calculation options are available:
+        
+        Option 1 (Original): Smax varies linearly with crop rooting depth based on
+                             smax_base and reference_depth. Seav is 50% of Smax.
+        
+        Option 2 (PAWC-based): Smax (TAW) is calculated from soil PAWC and current
+                               rooting depth. Seav (RAW) uses depletion fraction p.
         
         Args:
             day_idx: Day index
@@ -168,9 +188,23 @@ class WaterBalanceModel:
         Returns:
             Tuple of (smax, seav) in mm
         """
-        effective_root_depth = self.crop.rooting_depth[day_idx]
-        smax = (self.soil.smax_base / self.soil.reference_depth) * effective_root_depth
-        seav = smax * 0.5
+        if self.smax_calculation_option == 1:
+            # Option 1: Original method
+            effective_root_depth = self.crop.rooting_depth[day_idx]
+            smax = (self.soil.smax_base / self.soil.reference_depth) * effective_root_depth
+            seav = smax * 0.5
+        
+        elif self.smax_calculation_option == 2:
+            # Option 2: PAWC-based method
+            # Current rooting depth (m)
+            zr = self.crop.rooting_depth[day_idx]
+            
+            # Limit to dataset maximum depth
+            zr_eff = min(zr, self.soil.zmax)
+            
+            # Compute total & readily available water (mm)
+            smax = self.soil.pawc_soil * zr_eff * 1000.0  # TAW (Total Available Water)
+            seav = self.soil.p * smax                      # RAW (Readily Available Water)
         
         return smax, seav
     
@@ -211,8 +245,8 @@ class WaterBalanceModel:
         """
         Update deep percolation (aquifer recharge).
         
-        Percolation occurs when SM > Seav, proportional to excess moisture.
-        Note: Rmax is in mm/year, so divide by 365 for daily rate.
+        Percolation occurs when SM > Seav, proportional to excess moisture
+        using rmax and calibration_factor.
         
         Args:
             sm_t1: Soil moisture at previous time step (mm)
@@ -222,15 +256,13 @@ class WaterBalanceModel:
         Returns:
             Deep percolation (mm/day)
         """
-        if sm_t1 < seav:
-            perc = 0
-        else:
-            # Rmax is annual rate (mm/year), convert to daily (mm/day)
-            rmax_daily = self.soil.rmax / 365.0
-            perc = (rmax_daily * self.soil.calibration_factor * 
-                   (sm_t1 - seav) / (smax - seav))
+        if sm_t1 <= seav:
+            return 0.0
         
-        return max(0, perc)
+        perc = (self.soil.rmax * self.soil.calibration_factor * 
+               (sm_t1 - seav) / (smax - seav))
+        
+        return max(0.0, perc)
     
     def _update_runoff(
         self,

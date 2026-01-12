@@ -317,8 +317,7 @@ class TestIntegrationWithModel:
         
         soil = SoilParameters(
             smax_base=150.0,
-            rmax=10.0,
-            calibration_factor=2.4
+            rmax=10.0
         )
         
         # Run model

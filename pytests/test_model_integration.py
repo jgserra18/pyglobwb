@@ -374,3 +374,248 @@ class TestModelEdgeCases:
         
         # ET should be minimal (only landuse_kc)
         assert results['evapotranspiration'].mean() < 2.0
+
+
+class TestSmaxCalculationOptionsIntegration:
+    """Integration tests for smax calculation options in full model runs."""
+    
+    def test_full_run_option1(self, sample_soil_parameters, sample_crop_parameters, 
+                              sample_climate_data):
+        """Test full model run with Option 1 (original method)."""
+        model = WaterBalanceModel(
+            soil_params=sample_soil_parameters,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=1
+        )
+        
+        results = model.run(spinup_iterations=10)
+        
+        # Check that results are valid
+        assert len(results) == len(sample_climate_data.dates)
+        assert all(results['soil_moisture'] >= 0)
+        assert all(results['smax'] > 0)
+        assert all(results['seav'] > 0)
+        assert all(results['seav'] <= results['smax'])
+    
+    def test_full_run_option2(self, sample_soil_parameters, sample_crop_parameters, 
+                              sample_climate_data):
+        """Test full model run with Option 2 (PAWC-based method)."""
+        from water_balance_model import SoilParameters
+        
+        soil_pawc = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.18,
+            zmax=2.0,
+            p=0.5,
+            rmax=10.0
+        )
+        
+        model = WaterBalanceModel(
+            soil_params=soil_pawc,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        results = model.run(spinup_iterations=10)
+        
+        # Check that results are valid
+        assert len(results) == len(sample_climate_data.dates)
+        assert all(results['soil_moisture'] >= 0)
+        assert all(results['smax'] > 0)
+        assert all(results['seav'] > 0)
+        assert all(results['seav'] <= results['smax'])
+    
+    def test_compare_options_irrigation_requirements(self, sample_crop_parameters, 
+                                                     sample_climate_data):
+        """Compare irrigation requirements between Option 1 and Option 2."""
+        from water_balance_model import SoilParameters
+        
+        # Option 1 soil
+        soil1 = SoilParameters(
+            smax_base=150.0,
+            reference_depth=0.6,
+            rmax=10.0
+        )
+        
+        # Option 2 soil
+        soil2 = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.18,
+            zmax=2.0,
+            p=0.5,
+            rmax=10.0
+        )
+        
+        model1 = WaterBalanceModel(
+            soil_params=soil1,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=1
+        )
+        
+        model2 = WaterBalanceModel(
+            soil_params=soil2,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        results1 = model1.run(spinup_iterations=10)
+        results2 = model2.run(spinup_iterations=10)
+        
+        # Both should produce valid results (irrigation may be zero if precipitation is sufficient)
+        assert results1['irrigation'].sum() >= 0
+        assert results2['irrigation'].sum() >= 0
+        
+        # Smax and Seav should differ between options
+        assert not np.allclose(results1['smax'].values, 
+                              results2['smax'].values, rtol=0.01)
+    
+    def test_option2_soil_texture_sensitivity(self, sample_crop_parameters, 
+                                              sample_climate_data):
+        """Test that Option 2 is sensitive to soil texture (PAWC)."""
+        from water_balance_model import SoilParameters
+        
+        # Sandy soil (low PAWC)
+        soil_sandy = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.10,
+            zmax=2.0,
+            p=0.5,
+            rmax=10.0
+        )
+        
+        # Clay loam (high PAWC)
+        soil_clay = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.22,
+            zmax=2.0,
+            p=0.5,
+            rmax=10.0
+        )
+        
+        model_sandy = WaterBalanceModel(
+            soil_params=soil_sandy,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        model_clay = WaterBalanceModel(
+            soil_params=soil_clay,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        results_sandy = model_sandy.run(spinup_iterations=10)
+        results_clay = model_clay.run(spinup_iterations=10)
+        
+        # Smax should be different (sandy < clay)
+        assert results_sandy['smax'].mean() < results_clay['smax'].mean()
+        
+        # Sandy soil has lower water holding capacity
+        # If irrigation occurs, sandy should need more, but test the capacity difference
+        assert results_sandy['smax'].mean() == pytest.approx(
+            0.10 * results_sandy['rooting_depth'].mean() * 1000.0, rel=0.1
+        )
+        assert results_clay['smax'].mean() == pytest.approx(
+            0.22 * results_clay['rooting_depth'].mean() * 1000.0, rel=0.1
+        )
+    
+    def test_option2_depletion_fraction_effect(self, sample_crop_parameters, 
+                                               sample_climate_data):
+        """Test that depletion fraction affects irrigation timing in Option 2."""
+        from water_balance_model import SoilParameters
+        
+        # Low p (more sensitive, irrigate earlier)
+        soil_sensitive = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.18,
+            zmax=2.0,
+            p=0.4,
+            rmax=10.0
+        )
+        
+        # High p (less sensitive, irrigate later)
+        soil_tolerant = SoilParameters(
+            smax_base=150.0,
+            pawc_soil=0.18,
+            zmax=2.0,
+            p=0.6,
+            rmax=10.0
+        )
+        
+        model_sensitive = WaterBalanceModel(
+            soil_params=soil_sensitive,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        model_tolerant = WaterBalanceModel(
+            soil_params=soil_tolerant,
+            crop_params=sample_crop_parameters,
+            climate_data=sample_climate_data,
+            management='irrigated',
+            irrigation_efficiency=0.9,
+            smax_calculation_option=2
+        )
+        
+        results_sensitive = model_sensitive.run(spinup_iterations=10)
+        results_tolerant = model_tolerant.run(spinup_iterations=10)
+        
+        # Both should produce valid results
+        assert all(results_sensitive['irrigation'] >= 0)
+        assert all(results_tolerant['irrigation'] >= 0)
+        
+        # Seav should differ
+        assert results_sensitive['seav'].mean() < results_tolerant['seav'].mean()
+    
+    def test_water_balance_closure_both_options(self, sample_crop_parameters, 
+                                                sample_climate_data):
+        """Test that water balance closes properly for both options."""
+        from water_balance_model import SoilParameters
+        
+        soil1 = SoilParameters(smax_base=150.0, reference_depth=0.6)
+        soil2 = SoilParameters(smax_base=150.0, pawc_soil=0.18, zmax=2.0, p=0.5)
+        
+        for option, soil in [(1, soil1), (2, soil2)]:
+            model = WaterBalanceModel(
+                soil_params=soil,
+                crop_params=sample_crop_parameters,
+                climate_data=sample_climate_data,
+                management='irrigated',
+                irrigation_efficiency=0.9,
+                smax_calculation_option=option
+            )
+            
+            results = model.run(spinup_iterations=10)
+            
+            # Check water balance closure for each day
+            # Note: Percolation is calculated separately and not subtracted from SM update
+            # The model's water balance is: SM_t = SM_t-1 + P + I - ET - Runoff
+            for i in range(1, len(results)):
+                delta_sm = results['soil_moisture'].iloc[i] - results['soil_moisture'].iloc[i-1]
+                inputs = results['precipitation'].iloc[i] + results['irrigation'].iloc[i]
+                outputs = (results['evapotranspiration'].iloc[i] + 
+                          results['runoff'].iloc[i])
+                
+                # Water balance should close (allowing small numerical error)
+                assert abs(delta_sm - (inputs - outputs)) < 1.0

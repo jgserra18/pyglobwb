@@ -53,8 +53,8 @@ def sample_soil_parameters():
         smax_base=150.0,
         reference_depth=0.6,
         rmax=10.0,
-        initial_sm=75.0,
-        calibration_factor=2.4
+        initial_sm=75.0
+        # calibration_factor defaults to 1.0
     )
 
 
