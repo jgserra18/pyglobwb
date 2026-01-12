@@ -34,6 +34,17 @@ from .climate_utils import (
     resample_climate_data
 )
 
+from .crop_utils import (
+    CropCalendarConfig,
+    interpolate_monthly_to_daily,
+    interpolate_rooting_depth,
+    create_daily_crop_calendar,
+    create_crop_parameters,
+    get_crop_config,
+    load_crop_config_from_csv,
+    CROP_CONFIGS
+)
+
 __version__ = '0.1.0'
 
 __all__ = [
@@ -57,4 +68,12 @@ __all__ = [
     'calculate_aridity_index',
     'get_climate_statistics',
     'resample_climate_data',
+    'CropCalendarConfig',
+    'interpolate_monthly_to_daily',
+    'interpolate_rooting_depth',
+    'create_daily_crop_calendar',
+    'create_crop_parameters',
+    'get_crop_config',
+    'load_crop_config_from_csv',
+    'CROP_CONFIGS',
 ]
